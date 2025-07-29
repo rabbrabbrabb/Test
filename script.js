@@ -20,17 +20,20 @@ const tokens = [
 ];
 
 let chart, chartData = [], labels = [];
+let currentIndex = 0;
 
 function updateDisplay() {
   const container = document.getElementById("tokenList");
   container.innerHTML = "";
   let total = 0;
+  let loaded = 0;
 
   tokens.forEach(token => {
     if (!token.price) return;
     const value = token.amount * token.price;
     token.value = value;
     total += value;
+    loaded++;
 
     const row = document.createElement("div");
     row.innerHTML = `
@@ -43,7 +46,12 @@ function updateDisplay() {
     container.appendChild(row);
   });
 
-  document.getElementById("total").innerText = "$" + total.toFixed(2);
+  const totalEl = document.getElementById("total");
+  if (loaded === tokens.length) {
+    totalEl.innerText = "$" + total.toFixed(2);
+  } else {
+    totalEl.innerText = "Загружается...";
+  }
 }
 
 function updateChart() {
@@ -71,28 +79,40 @@ async function initialFetch() {
   try {
     const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
     const data = await res.json();
+    let allLoaded = true;
+
     tokens.forEach(t => {
       const price = data[t.id]?.usd;
       if (price) {
         t.price = price;
         t.value = price * t.amount;
+      } else {
+        allLoaded = false;
       }
     });
-    updateDisplay();
-    updateChart();
+
+    if (allLoaded) {
+      updateDisplay();
+      updateChart();
+    } else {
+      document.getElementById("total").innerText = "Загружается...";
+    }
+
   } catch (e) {
     console.error("Initial fetch error:", e.message);
+    document.getElementById("total").innerText = "Ошибка загрузки";
   }
 }
 
-let currentIndex = 0;
 async function fetchPrices() {
   const group = tokens.slice(currentIndex, currentIndex + 4);
   currentIndex = (currentIndex + 4) % tokens.length;
   const ids = group.map(t => t.id).join(",");
+
   try {
     const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
     const data = await res.json();
+
     group.forEach(t => {
       const price = data[t.id]?.usd;
       if (price) {
@@ -100,6 +120,7 @@ async function fetchPrices() {
         t.value = price * t.amount;
       }
     });
+
     updateDisplay();
     updateChart();
   } catch (e) {
@@ -127,22 +148,16 @@ window.onload = () => {
       responsive: true,
       plugins: {
         legend: {
-          labels: {
-            color: "white",
-          },
+          labels: { color: "white" },
         },
       },
       scales: {
-        x: {
-          ticks: { color: "white" },
-        },
-        y: {
-          ticks: { color: "white" },
-        },
+        x: { ticks: { color: "white" } },
+        y: { ticks: { color: "white" } },
       },
     },
   });
 
   initialFetch();
-  setInterval(fetchPrices, 10000);
+  setInterval(fetchPrices, 5000);
 };
