@@ -13,9 +13,9 @@ const holdings = {
   FLOW: 5600,
   KSM: 148,
   GMT: 45234,
-  IO: 2390,
   IMX: 3200,
   ENA: 8543,
+  BNB: 4
 };
 
 const tokenIdMap = {
@@ -33,9 +33,9 @@ const tokenIdMap = {
   FLOW: "flow",
   KSM: "kusama",
   GMT: "stepn",
-  IO: "io-net",
   IMX: "immutable-x",
   ENA: "ethena",
+  BNB: "binancecoin"
 };
 
 const ctx = document.getElementById("chart").getContext("2d");
@@ -143,14 +143,17 @@ async function partialUpdates() {
     for (const sym of symbols.slice(index, index + 4)) {
       const id = tokenIdMap[sym];
       if (prices[id]) {
-        const cell = document.querySelector(`td.token-name:contains(${sym})`);
-        if (cell) {
-          const price = prices[id].usd;
-          const amount = holdings[sym];
-          const value = price * amount;
-          const row = cell.parentElement;
-          row.children[2].textContent = `$${value.toFixed(2)}`;
-        }
+        const price = prices[id].usd;
+        const amount = holdings[sym];
+        const value = price * amount;
+
+        const rows = document.querySelectorAll("td.token-name");
+        rows.forEach(cell => {
+          if (cell.textContent === sym) {
+            const row = cell.parentElement;
+            row.children[2].textContent = `$${value.toFixed(2)}`;
+          }
+        });
       }
     }
 
