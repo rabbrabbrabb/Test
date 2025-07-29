@@ -28,7 +28,7 @@ async function updateData() {
   const prices = await res.json();
 
   let total = 0;
-  const table = document.getElementById('tokenTable');
+  const table = document.getElementById("tokenTable");
   table.innerHTML = "";
 
   tokens.forEach(token => {
@@ -45,15 +45,18 @@ async function updateData() {
     table.innerHTML += row;
   });
 
-  document.getElementById("total").innerText = `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  document.getElementById("total").innerText = `$${total.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
 
-  const now = new Date();
+  const now = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   if (chartData.length > 7) {
     chartData.shift();
     chartLabels.shift();
   }
   chartData.push(total);
-  chartLabels.push(now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }));
+  chartLabels.push(now);
   chart.update();
 }
 
@@ -67,8 +70,7 @@ const chart = new Chart(ctx, {
       data: chartData,
       borderColor: "orange",
       backgroundColor: "transparent",
-      pointRadius: 5,
-      pointHoverRadius: 7,
+      pointRadius: 5
     }]
   },
   options: {
@@ -78,5 +80,5 @@ const chart = new Chart(ctx, {
   }
 });
 
-setInterval(updateData, 15000);
+setInterval(updateData, 10000);
 updateData();
