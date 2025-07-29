@@ -18,62 +18,104 @@ const holdings = {
   ENA: 9543,
 };
 
-const chartCtx = document.getElementById("chart").getContext("2d");
+const tokenIdMap = {
+  BTC: "bitcoin",
+  ETH: "ethereum",
+  LDO: "lido-dao",
+  SOL: "solana",
+  SEI: "sei-network",
+  ZK: "zksync",
+  MANTA: "manta-network",
+  STRK: "starknet",
+  OP: "optimism",
+  ARB: "arbitrum",
+  BAKE: "bakerytoken",
+  FLOW: "flow",
+  KSM: "kusama",
+  GMT: "stepn",
+  IO: "io-net",
+  IMX: "immutable-x",
+  ENA: "ethena",
+};
+
+const ctx = document.getElementById("chart").getContext("2d");
 let balanceChart;
 let balanceHistory = [];
 let dateLabels = [];
 
-async function fetchPrices(symbols) {
-  const result = {};
-  for (let symbol of symbols) {
-    try {
-      const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${symbol.toLowerCase()}&vs_currencies=usd`);
-      const data = await response.json();
-      result[symbol] = data[symbol.toLowerCase()]?.usd || 0;
-    } catch {
-      result[symbol] = 0;
+function initChart() {
+  balanceChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: dateLabels,
+      datasets: [{
+        label: "Balance",
+        data: balanceHistory,
+        borderColor: "orange",
+        backgroundColor: "transparent",
+        pointRadius: 4,
+        borderWidth: 2,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: { color: "orange" }
+        }
+      },
+      scales: {
+        x: { ticks: { color: "#ccc" } },
+        y: { ticks: { color: "#ccc" } }
+      }
     }
-  }
-  return result;
+  });
 }
 
-function updateClock() {
-  const now = new Date();
-  document.getElementById("time").textContent = now.toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' });
+async function fetchAllPrices() {
+  const ids = Object.values(tokenIdMap).join(",");
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+    if (!res.ok) throw new Error("Failed to load prices");
+    return await res.json();
+  } catch (err) {
+    console.error("Ошибка загрузки:", err);
+    return {};
+  }
 }
 
 async function updateWallet() {
-  const tokenSymbols = Object.keys(holdings);
-  const prices = await fetchPrices(tokenSymbols);
+  const priceData = await fetchAllPrices();
+  const table = document.getElementById("tokens");
+  const balanceEl = document.getElementById("balance");
+  const loadingEl = document.getElementById("loading");
 
-  const tokensTable = document.getElementById("tokens");
-  tokensTable.innerHTML = "";
-
+  table.innerHTML = "";
   let total = 0;
 
   for (const [symbol, amount] of Object.entries(holdings)) {
-    const price = prices[symbol];
-    const value = (price * amount).toFixed(2);
-    total += +value;
+    const id = tokenIdMap[symbol];
+    const price = priceData[id]?.usd || 0;
+    const value = price * amount;
+    total += value;
 
     const row = document.createElement("tr");
     row.innerHTML = `
       <td class="token-name">${symbol}</td>
       <td class="token-amount">${amount}</td>
-      <td class="token-value">$${value}</td>
+      <td class="token-value">$${value.toFixed(2)}</td>
     `;
-    tokensTable.appendChild(row);
+    table.appendChild(row);
   }
 
-  document.getElementById("balance").textContent = `$${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-  document.getElementById("loading").style.display = "none";
+  balanceEl.textContent = `$${total.toFixed(2)}`;
+  loadingEl.style.display = "none";
 
-  // Update chart
-  const now = new Date();
-  const date = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  const date = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   if (!dateLabels.includes(date)) {
     dateLabels.push(date);
-    balanceHistory.push(total);
+    balanceHistory.push(total.toFixed(2));
     if (dateLabels.length > 7) {
       dateLabels.shift();
       balanceHistory.shift();
@@ -82,45 +124,18 @@ async function updateWallet() {
   }
 }
 
-function initChart() {
-  balanceChart = new Chart(chartCtx, {
-    type: "line",
-    data: {
-      labels: dateLabels,
-      datasets: [
-        {
-          label: "Balance",
-          data: balanceHistory,
-          borderColor: "orange",
-          backgroundColor: "transparent",
-          pointBorderColor: "orange",
-          tension: 0.3
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: false,
-        },
-      },
-      plugins: {
-        legend: {
-          labels: {
-            color: "orange",
-          },
-        },
-      },
-    },
+function updateTime() {
+  const now = new Date();
+  document.getElementById("time").textContent = now.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit"
   });
 }
 
 window.onload = async () => {
-  updateClock();
-  setInterval(updateClock, 60000);
-
+  updateTime();
+  setInterval(updateTime, 60000);
   initChart();
   await updateWallet();
-  setInterval(updateWallet, 5000); // обновление каждые 15 сек
+  setInterval(updateWallet, 15000);
 };
