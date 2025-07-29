@@ -79,5 +79,5 @@ const chart = new Chart(ctx, {
   }
 });
 
-setInterval(updateData, 10000);
+setInterval(updateData, 1000);
 updateData();
