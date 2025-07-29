@@ -18,8 +18,17 @@ const tokens = [
   { id: "ethena", symbol: "ENA", amount: 8543 }
 ];
 
-const chartData = [];
-const chartLabels = [];
+let total = 0;
+let chartData = [];
+let chartLabels = [];
+let currentGroup = 0;
+
+// разделим токены на группы по 3–4
+const chunkSize = 4;
+const tokenGroups = [];
+for (let i = 0; i < tokens.length; i += chunkSize) {
+  tokenGroups.push(tokens.slice(i, i + chunkSize));
+}
 
 async function fetchHistory(id) {
   try {
@@ -27,64 +36,75 @@ async function fetchHistory(id) {
     const json = await res.json();
     return json.prices.map(p => p[1]);
   } catch (e) {
-    console.error(`Error loading history for ${id}:`, e);
-    return Array(7).fill(0); // fallback zeroes
+    console.error(`History error for ${id}:`, e);
+    return Array(7).fill(0);
   }
 }
 
 async function buildHistory() {
-  try {
-    const arrays = await Promise.all(tokens.map(t => fetchHistory(t.id)));
-    for (let i = 0; i < arrays[0].length; i++) {
-      let sum = 0;
-      tokens.forEach((t, idx) => {
-        sum += arrays[idx][i] * t.amount;
-      });
-      const daysAgo = arrays[0].length - 1 - i;
-      const date = new Date();
-      date.setDate(date.getDate() - daysAgo);
-      chartLabels.push(date.toLocaleDateString("en-GB",{day:"2-digit",month:"short"}));
-      chartData.push(sum.toFixed(2));
-    }
-  } catch (e) {
-    console.error("Error building chart data:", e);
+  const arrays = await Promise.all(tokens.map(t => fetchHistory(t.id)));
+  for (let i = 0; i < arrays[0].length; i++) {
+    let sum = 0;
+    tokens.forEach((t, idx) => {
+      sum += arrays[idx][i] * t.amount;
+    });
+    const daysAgo = arrays[0].length - 1 - i;
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    chartLabels.push(date.toLocaleDateString("en-GB",{day:"2-digit",month:"short"}));
+    chartData.push(sum.toFixed(2));
   }
 }
 
-async function updateCurrent() {
-  const table = document.getElementById("tokenTable");
+function renderTableRow(token, valueUSD) {
+  const row = document.querySelector(`tr[data-symbol="${token.symbol}"]`);
+  if (row) {
+    row.children[2].innerText = `$${valueUSD.toFixed(2)}`;
+  } else {
+    const table = document.getElementById("tokenTable");
+    const tr = document.createElement("tr");
+    tr.setAttribute("data-symbol", token.symbol);
+    tr.innerHTML = `
+      <td style="text-align:left;">${token.symbol}</td>
+      <td style="text-align:center;">${token.amount}</td>
+      <td style="text-align:right;">$${valueUSD.toFixed(2)}</td>
+    `;
+    table.appendChild(tr);
+  }
+}
+
+async function updateGroup() {
+  const group = tokenGroups[currentGroup];
+  const ids = group.map(t => t.id).join(',');
   try {
-    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${tokens.map(t=>t.id).join(',')}&vs_currencies=usd`);
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
     const prices = await res.json();
-    let total = 0;
-    table.innerHTML = "";
-
-    tokens.forEach(t => {
-      const price = prices[t.id]?.usd;
-      if (!price) return;
-      const value = price * t.amount;
-      total += value;
-
-      table.innerHTML += `<tr>
-        <td style="text-align:left;">${t.symbol}</td>
-        <td style="text-align:center;">${t.amount}</td>
-        <td style="text-align:right;">$${value.toFixed(2)}</td>
-      </tr>`;
+    let subtotal = 0;
+    group.forEach(token => {
+      const price = prices[token.id]?.usd || 0;
+      const value = price * token.amount;
+      subtotal += value;
+      renderTableRow(token, value);
     });
-
+    total += subtotal;
     document.getElementById("total").innerText = `$${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
   } catch (e) {
-    console.error("Error updating current prices:", e);
-    document.getElementById("total").innerText = "$—";
-    table.innerHTML = `<tr><td colspan="3" style="text-align:center;">Failed to load data</td></tr>`;
+    console.error("Group update failed:", e);
   }
+
+  currentGroup = (currentGroup + 1) % tokenGroups.length;
 }
 
 async function main() {
   await buildHistory();
   chart.update();
-  await updateCurrent();
-  setInterval(updateCurrent, 10000);
+
+  total = 0;
+  document.getElementById("tokenTable").innerHTML = "";
+  document.getElementById("total").innerText = "$0.00";
+
+  updateGroup(); // сразу первый запуск
+  setInterval(updateGroup, 15000); // каждые 15 сек
 }
 
 const ctx = document.getElementById("balanceChart").getContext("2d");
