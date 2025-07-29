@@ -1,163 +1,126 @@
-const tokens = [
-  { name: "BTC", id: "bitcoin", amount: 0.05675 },
-  { name: "ETH", id: "ethereum", amount: 5.2352 },
-  { name: "LDO", id: "lido-dao", amount: 3250.23 },
-  { name: "SOL", id: "solana", amount: 74.45 },
-  { name: "SEI", id: "sei-network", amount: 8452.6 },
-  { name: "ZK", id: "zksync", amount: 42341.35 },
-  { name: "MANTA", id: "manta-network", amount: 8378 },
-  { name: "STRK", id: "starknet", amount: 15373 },
-  { name: "OP", id: "optimism", amount: 4478 },
-  { name: "ARB", id: "arbitrum", amount: 4956 },
-  { name: "SONIC", id: "sonic", amount: 5890 },
-  { name: "BAKE", id: "bakerytoken", amount: 16453 },
-  { name: "FLOW", id: "flow", amount: 5600 },
-  { name: "KSM", id: "kusama", amount: 148 },
-  { name: "GMT", id: "stepn", amount: 45234 },
-  { name: "IO", id: "io-net", amount: 2390 },
-  { name: "IMX", id: "immutable-x", amount: 3200 },
-  { name: "ENA", id: "ethena", amount: 9543 },
-];
+const holdings = {
+  BTC: 0.057,
+  ETH: 5.2352,
+  LDO: 3250.23,
+  SOL: 74.45,
+  SEI: 8452.6,
+  ZK: 42341.35,
+  MANTA: 8378,
+  STRK: 15373,
+  OP: 4478,
+  ARB: 4956,
+  BAKE: 16453,
+  FLOW: 5600,
+  KSM: 148,
+  GMT: 45234,
+  IO: 2390,
+  IMX: 3200,
+  ENA: 9543,
+};
 
-let chart, chartData = [], labels = [];
-let currentIndex = 0;
+const chartCtx = document.getElementById("chart").getContext("2d");
+let balanceChart;
+let balanceHistory = [];
+let dateLabels = [];
 
-function updateDisplay() {
-  const container = document.getElementById("tokenList");
-  container.innerHTML = "";
-  let total = 0;
-  let loaded = 0;
-
-  tokens.forEach(token => {
-    if (!token.price) return;
-    const value = token.amount * token.price;
-    token.value = value;
-    total += value;
-    loaded++;
-
-    const row = document.createElement("div");
-    row.innerHTML = `
-      <span>${token.name}</span>
-      <span>${token.amount.toLocaleString()}</span>
-      <span>$${value.toFixed(2)}</span>
-    `;
-    row.style.display = "flex";
-    row.style.justifyContent = "space-between";
-    container.appendChild(row);
-  });
-
-  const totalEl = document.getElementById("total");
-  if (loaded === tokens.length) {
-    totalEl.innerText = "$" + total.toFixed(2);
-  } else {
-    totalEl.innerText = "Загружается...";
+async function fetchPrices(symbols) {
+  const result = {};
+  for (let symbol of symbols) {
+    try {
+      const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${symbol.toLowerCase()}&vs_currencies=usd`);
+      const data = await response.json();
+      result[symbol] = data[symbol.toLowerCase()]?.usd || 0;
+    } catch {
+      result[symbol] = 0;
+    }
   }
+  return result;
 }
 
-function updateChart() {
-  const total = tokens.reduce((sum, t) => sum + (t.value || 0), 0);
+function updateClock() {
   const now = new Date();
-  const label = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  document.getElementById("time").textContent = now.toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' });
+}
 
-  if (!labels.includes(label)) {
-    labels.push(label);
-    chartData.push(total);
+async function updateWallet() {
+  const tokenSymbols = Object.keys(holdings);
+  const prices = await fetchPrices(tokenSymbols);
 
-    if (labels.length > 7) {
-      labels.shift();
-      chartData.shift();
+  const tokensTable = document.getElementById("tokens");
+  tokensTable.innerHTML = "";
+
+  let total = 0;
+
+  for (const [symbol, amount] of Object.entries(holdings)) {
+    const price = prices[symbol];
+    const value = (price * amount).toFixed(2);
+    total += +value;
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td class="token-name">${symbol}</td>
+      <td class="token-amount">${amount}</td>
+      <td class="token-value">$${value}</td>
+    `;
+    tokensTable.appendChild(row);
+  }
+
+  document.getElementById("balance").textContent = `$${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  document.getElementById("loading").style.display = "none";
+
+  // Update chart
+  const now = new Date();
+  const date = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  if (!dateLabels.includes(date)) {
+    dateLabels.push(date);
+    balanceHistory.push(total);
+    if (dateLabels.length > 7) {
+      dateLabels.shift();
+      balanceHistory.shift();
     }
-
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = chartData;
-    chart.update();
+    balanceChart.update();
   }
 }
 
-async function initialFetch() {
-  const ids = tokens.map(t => t.id).join(",");
-  try {
-    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
-    const data = await res.json();
-    let allLoaded = true;
-
-    tokens.forEach(t => {
-      const price = data[t.id]?.usd;
-      if (price) {
-        t.price = price;
-        t.value = price * t.amount;
-      } else {
-        allLoaded = false;
-      }
-    });
-
-    if (allLoaded) {
-      updateDisplay();
-      updateChart();
-    } else {
-      document.getElementById("total").innerText = "Загружается...";
-    }
-
-  } catch (e) {
-    console.error("Initial fetch error:", e.message);
-    document.getElementById("total").innerText = "Ошибка загрузки";
-  }
-}
-
-async function fetchPrices() {
-  const group = tokens.slice(currentIndex, currentIndex + 4);
-  currentIndex = (currentIndex + 4) % tokens.length;
-  const ids = group.map(t => t.id).join(",");
-
-  try {
-    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
-    const data = await res.json();
-
-    group.forEach(t => {
-      const price = data[t.id]?.usd;
-      if (price) {
-        t.price = price;
-        t.value = price * t.amount;
-      }
-    });
-
-    updateDisplay();
-    updateChart();
-  } catch (e) {
-    console.error("Price fetch error:", e.message);
-  }
-}
-
-window.onload = () => {
-  const ctx = document.getElementById("chart").getContext("2d");
-  chart = new Chart(ctx, {
+function initChart() {
+  balanceChart = new Chart(chartCtx, {
     type: "line",
     data: {
-      labels: [],
-      datasets: [{
-        label: "Balance",
-        data: [],
-        borderColor: "orange",
-        backgroundColor: "transparent",
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        borderWidth: 2,
-      }],
+      labels: dateLabels,
+      datasets: [
+        {
+          label: "Balance",
+          data: balanceHistory,
+          borderColor: "orange",
+          backgroundColor: "transparent",
+          pointBorderColor: "orange",
+          tension: 0.3
+        },
+      ],
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: {
-          labels: { color: "white" },
+      scales: {
+        y: {
+          beginAtZero: false,
         },
       },
-      scales: {
-        x: { ticks: { color: "white" } },
-        y: { ticks: { color: "white" } },
+      plugins: {
+        legend: {
+          labels: {
+            color: "orange",
+          },
+        },
       },
     },
   });
+}
 
-  initialFetch();
-  setInterval(fetchPrices, 5000);
+window.onload = async () => {
+  updateClock();
+  setInterval(updateClock, 60000);
+
+  initChart();
+  await updateWallet();
+  setInterval(updateWallet, 5000); // обновление каждые 15 сек
 };
