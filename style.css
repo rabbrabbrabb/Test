@@ -1,24 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Wallet</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div id="time" class="time"></div>
-      <h1>Wallet</h1>
-      <div id="loading" class="loading">Загружается...</div>
-      <div id="balance" class="balance">$0.00</div>
-    </div>
-    <canvas id="chart" class="chart"></canvas>
-    <table id="tokens" class="token-table"></table>
-  </div>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #121212;
+  color: white;
+  text-align: center;
+}
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="script.js"></script>
-</body>
-</html>
+.container {
+  padding: 1rem;
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.time {
+  font-size: 1.1rem;
+  color: #ccc;
+}
+
+.balance {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-top: 0.5rem;
+}
+
+.loading {
+  font-size: 1.2rem;
+  color: orange;
+  margin: 0.5rem 0;
+}
+
+.chart {
+  max-width: 100%;
+  height: 200px;
+  margin-bottom: 1rem;
+}
+
+.token-table {
+  width: 100%;
+  border-spacing: 0.5rem;
+}
+
+.token-table td {
+  padding: 0.3rem 0.5rem;
+  font-size: 1rem;
+}
+
+.token-name {
+  text-align: left;
+}
+.token-amount {
+  text-align: center;
+}
+.token-value {
+  text-align: right;
+}
