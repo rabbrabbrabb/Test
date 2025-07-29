@@ -21,42 +21,52 @@ const tokens = [
 const chartData = [];
 const chartLabels = [];
 
-async function updateData() {
-  const ids = tokens.map(t => t.id).join(',');
-  const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
-  const prices = await res.json();
+async function fetchHistory(id) {
+  const res = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=7`);
+  const json = await res.json();
+  return json.prices.map(p => p[1]); // daily prices from each point
+}
 
+async function buildHistory() {
+  const arrays = await Promise.all(tokens.map(t => fetchHistory(t.id)));
+  // for each day index, sum across all tokens
+  for (let i = 0; i < arrays[0].length; i++) {
+    let sum = 0;
+    tokens.forEach((t, idx) => {
+      sum += arrays[idx][i] * t.amount;
+    });
+    const daysAgo = arrays[0].length - 1 - i;
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    chartLabels.push(date.toLocaleDateString("en-GB",{day:"2-digit",month:"short"}));
+    chartData.push(sum.toFixed(2));
+  }
+}
+
+async function updateCurrent() {
+  const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${tokens.map(t=>t.id).join(',')}&vs_currencies=usd`);
+  const prices = await res.json();
   let total = 0;
   const table = document.getElementById("tokenTable");
   table.innerHTML = "";
-
-  tokens.forEach(token => {
-    const price = prices[token.id]?.usd || 0;
-    const value = price * token.amount;
+  tokens.forEach(t => {
+    const price = prices[t.id]?.usd || 0;
+    const value = price * t.amount;
     total += value;
-
-    const row = `<tr>
-      <td style="text-align:left;">${token.symbol}</td>
-      <td style="text-align:center;">${token.amount}</td>
+    table.innerHTML += `<tr>
+      <td style="text-align:left;">${t.symbol}</td>
+      <td style="text-align:center;">${t.amount}</td>
       <td style="text-align:right;">$${value.toFixed(2)}</td>
     </tr>`;
-
-    table.innerHTML += row;
   });
+  document.getElementById("total").innerText = `$${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+}
 
-  document.getElementById("total").innerText = `$${total.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`;
-
-  const now = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-  if (chartData.length > 7) {
-    chartData.shift();
-    chartLabels.shift();
-  }
-  chartData.push(total);
-  chartLabels.push(now);
+async function main() {
+  await buildHistory();
   chart.update();
+  await updateCurrent();
+  setInterval(updateCurrent, 10000);
 }
 
 const ctx = document.getElementById("balanceChart").getContext("2d");
@@ -64,20 +74,9 @@ const chart = new Chart(ctx, {
   type: "line",
   data: {
     labels: chartLabels,
-    datasets: [{
-      label: "Balance",
-      data: chartData,
-      borderColor: "orange",
-      backgroundColor: "transparent",
-      pointRadius: 5
-    }]
+    datasets: [{ label: "Balance", data: chartData, borderColor: "orange", backgroundColor: "transparent", pointRadius: 5 }]
   },
-  options: {
-    scales: {
-      y: { beginAtZero: false }
-    }
-  }
+  options: { scales: { y: { beginAtZero: false } }}
 });
 
-setInterval(updateData, 1000);
-updateData();
+main();
