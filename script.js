@@ -1,46 +1,56 @@
 const tokens = [
-  ["BTC", "0.1749", 11000, 10600],
-  ["ETH", "5.00", 20000, 19000],
-  ["LDO", "4666.67", 4900, 4500],
-  ["SOL", "77.78", 14000, 13500],
-  ["CATI", "100000", 1900, 2100],
-  ["SEI", "10000", 3500, 3400],
-  ["ZK", "3000", 1200, 1180],
-  ["MANTA", "2500", 1500, 1450],
-  ["STRK", "2000", 1200, 1190],
-  ["OP", "2000", 3000, 2900],
-  ["ARB", "2500", 2000, 1950],
-  ["S", "3000", 1500, 1480],
-  ["BAKE", "10000", 2500, 2400],
-  ["FLOW", "5000", 1500, 1550],
-  ["KSM", "80", 2000, 1900],
-  ["GMT", "10000", 1500, 1490],
-  ["IO", "8500", 1700, 1650],
-  ["IMX", "4000", 1600, 1600],
-  ["RUNE", "500", 1000, 950],
-  ["ENA", "10000", 5000, 4700],
+  ["BTC", 0.1749, 61000, 62869],
+  ["ETH", 5.00, 4000, 3800],
+  ["LDO", 4666.67, 1.05, 0.964],
+  ["SOL", 77.78, 35.00, 34.8],
+  ["CATI", 100000, 0.019, 0.021],
+  ["SEI", 10000, 0.35, 0.34],
+  ["ZK", 3000, 0.4, 0.393],
+  ["MANTA", 2500, 0.6, 0.58],
+  ["STRK", 2000, 0.6, 0.595],
+  ["OP", 2000, 1.5, 1.45],
+  ["ARB", 2500, 0.8, 0.78],
+  ["S", 3000, 0.5, 0.493],
+  ["BAKE", 10000, 0.25, 0.24],
+  ["FLOW", 5000, 0.3, 0.31],
+  ["KSM", 80, 25.0, 23.75],
+  ["GMT", 10000, 0.15, 0.149],
+  ["IO", 8500, 0.2, 0.194],
+  ["IMX", 4000, 0.4, 0.4],
+  ["RUNE", 500, 2.0, 1.9],
+  ["ENA", 10000, 0.5, 0.47]
 ];
 
 const today = new Date().toISOString().split("T")[0];
 
-function calcPercentage(current, original) {
-  return ((current - original) / original * 100).toFixed(2);
+function calcUSD(amount, price) {
+  return amount * price;
 }
 
-document.getElementById("tokens").innerHTML = tokens.map(([name, qty, now, entry]) => {
-  const pct = calcPercentage(now, entry);
+function calcPct(now, entry) {
+  return ((now - entry) / entry * 100).toFixed(2);
+}
+
+let total = 0;
+
+document.getElementById("tokens").innerHTML = tokens.map(([name, amount, current, entry]) => {
+  const usd = calcUSD(amount, current);
+  const pct = calcPct(current, entry);
+  total += usd;
   return `
     <div style="text-align:left">${name}</div>
-    <div style="text-align:center">${qty}</div>
-    <div style="text-align:right">$${now.toLocaleString()}</div>
+    <div style="text-align:center">${amount}</div>
+    <div style="text-align:right">$${usd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
     <div style="text-align:right; color:${pct >= 0 ? 'lime' : 'red'}">${pct}%</div>
   `;
 }).join('');
 
-const chartLabels = ['23 Jul', '24 Jul', '25 Jul', '26 Jul', '27 Jul', '28 Jul', today];
-const chartData = [78000, 79000, 77000, 80000, 80500, 81500, 84431];
+document.getElementById("total-balance").innerText = "$" + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
 const ctx = document.getElementById('balanceChart').getContext('2d');
+const chartLabels = ['23 Jul', '24 Jul', '25 Jul', '26 Jul', '27 Jul', '28 Jul', today];
+const chartData = [78000, 79000, 77000, 80000, 80500, 81500, total.toFixed(2)];
+
 const balanceChart = new Chart(ctx, {
   type: 'line',
   data: {
@@ -54,7 +64,11 @@ const balanceChart = new Chart(ctx, {
     }]
   },
   options: {
-    scales: { y: { beginAtZero: false } },
-    plugins: { legend: { display: false } }
+    scales: {
+      y: { beginAtZero: false }
+    },
+    plugins: {
+      legend: { display: false }
+    }
   }
 });
