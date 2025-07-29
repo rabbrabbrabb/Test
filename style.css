@@ -1,19 +1,24 @@
-body {
-  background: #111;
-  color: #fff;
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-.container {
-  max-width: 600px;
-  margin: auto;
-  padding: 20px;
-}
-table {
-  width: 100%;
-  margin-top: 20px;
-  border-collapse: collapse;
-}
-td {
-  padding: 6px;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wallet</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div id="time" class="time"></div>
+      <h1>Wallet</h1>
+      <div id="loading" class="loading">Загружается...</div>
+      <div id="balance" class="balance">$0.00</div>
+    </div>
+    <canvas id="chart" class="chart"></canvas>
+    <table id="tokens" class="token-table"></table>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
