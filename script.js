@@ -1,87 +1,88 @@
 const tokens = [
-  ["bitcoin", "BTC", 0.1749, 62869],
-  ["ethereum", "ETH", 5.0, 3800],
-  ["lido-dao", "LDO", 4666.67, 0.964],
-  ["solana", "SOL", 77.78, 34.8],
-  ["catgirl", "CATI", 100000, 0.021],
-  ["sei-network", "SEI", 10000, 0.34],
-  ["zksync", "ZK", 3000, 0.393],
-  ["manta-network", "MANTA", 2500, 0.58],
-  ["starknet", "STRK", 2000, 0.595],
-  ["optimism", "OP", 2000, 1.45],
-  ["arbitrum", "ARB", 2500, 0.78],
-  ["saffron-finance", "S", 3000, 0.493],
-  ["bakerytoken", "BAKE", 10000, 0.24],
-  ["flow", "FLOW", 5000, 0.31],
-  ["kusama", "KSM", 80, 23.75],
-  ["stepn", "GMT", 10000, 0.149],
-  ["io", "IO", 8500, 0.194],
-  ["immutable-x", "IMX", 4000, 0.4],
-  ["thorchain", "RUNE", 500, 1.9],
-  ["ethena", "ENA", 10000, 0.47]
+  { id: "bitcoin", symbol: "BTC", amount: 0.1749, purchase: 11000 },
+  { id: "ethereum", symbol: "ETH", amount: 5.0, purchase: 20000 },
+  { id: "lido-dao", symbol: "LDO", amount: 4666.67, purchase: 4900 },
+  { id: "solana", symbol: "SOL", amount: 77.78, purchase: 14000 },
+  { id: "sei-network", symbol: "SEI", amount: 10000, purchase: 3500 },
+  { id: "zksync", symbol: "ZK", amount: 3000, purchase: 1200 },
+  { id: "manta-network", symbol: "MANTA", amount: 2500, purchase: 1500 },
+  { id: "starknet", symbol: "STRK", amount: 2000, purchase: 1200 },
+  { id: "optimism", symbol: "OP", amount: 2000, purchase: 3000 },
+  { id: "arbitrum", symbol: "ARB", amount: 2500, purchase: 2000 },
+  { id: "sonic", symbol: "S", amount: 3000, purchase: 1500 },
+  { id: "bakerytoken", symbol: "BAKE", amount: 10000, purchase: 2500 },
+  { id: "flow", symbol: "FLOW", amount: 5000, purchase: 1500 },
+  { id: "kusama", symbol: "KSM", amount: 80, purchase: 2000 },
+  { id: "stepn", symbol: "GMT", amount: 10000, purchase: 1500 },
+  { id: "io", symbol: "IO", amount: 8500, purchase: 1700 },
+  { id: "immutable-x", symbol: "IMX", amount: 4000, purchase: 1600 },
+  { id: "thorchain", symbol: "RUNE", amount: 500, purchase: 1000 },
+  { id: "ethena", symbol: "ENA", amount: 10000, purchase: 5000 },
 ];
 
-const today = new Date().toISOString().split("T")[0];
+const chartData = [];
+const chartLabels = [];
 
-function fetchPrices() {
-  const ids = tokens.map(t => t[0]).join(',');
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`;
+async function updateData() {
+  const ids = tokens.map(t => t.id).join(',');
+  const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+  const prices = await res.json();
 
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      let total = 0;
-      let html = "";
+  let total = 0;
+  const table = document.getElementById('tokenTable');
+  table.innerHTML = "";
 
-      tokens.forEach(([id, symbol, qty, entry]) => {
-        const price = data[id]?.usd || 0;
-        const usd = qty * price;
-        const pct = entry ? (((price - entry) / entry) * 100).toFixed(2) : "0.00";
-        const pctColor = pct >= 0 ? 'lime' : 'red';
+  tokens.forEach(token => {
+    const price = prices[token.id]?.usd || 0;
+    const value = price * token.amount;
+    const change = ((value - token.purchase) / token.purchase) * 100;
+    total += value;
 
-        total += usd;
+    const row = `<tr>
+      <td>${token.symbol}</td>
+      <td>${token.amount}</td>
+      <td>$${value.toFixed(2)}</td>
+      <td class="${change >= 0 ? 'positive' : 'negative'}">${change.toFixed(2)}%</td>
+    </tr>`;
+    table.innerHTML += row;
+  });
 
-        html += `
-          <div style="text-align:left">${symbol}</div>
-          <div style="text-align:center">${qty}</div>
-          <div style="text-align:right">$${usd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-          <div style="text-align:right; color:${pctColor}">${pct}%</div>
-        `;
-      });
+  document.getElementById("total").innerText = `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-      document.getElementById("tokens").innerHTML = html;
-      document.getElementById("total-balance").innerText = "$" + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const now = new Date();
+  document.getElementById("time").innerText = now.toTimeString().slice(0, 5);
 
-      renderChart(total);
-    });
+  if (chartData.length > 7) {
+    chartData.shift();
+    chartLabels.shift();
+  }
+  chartData.push(total);
+  chartLabels.push(now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }));
+  chart.update();
 }
 
-function renderChart(total) {
-  const ctx = document.getElementById('balanceChart').getContext('2d');
-  const chartLabels = ['23 Jul', '24 Jul', '25 Jul', '26 Jul', '27 Jul', '28 Jul', today];
-  const chartData = [78000, 79000, 77000, 80000, 80500, 81500, total];
-
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: chartLabels,
-      datasets: [{
-        label: 'Total Balance (USD)',
-        data: chartData,
-        borderColor: 'orange',
-        backgroundColor: 'rgba(255,165,0,0.1)',
-        tension: 0.3
-      }]
-    },
-    options: {
-      scales: {
-        y: { beginAtZero: false }
-      },
-      plugins: {
-        legend: { display: false }
+const ctx = document.getElementById("balanceChart").getContext("2d");
+const chart = new Chart(ctx, {
+  type: "line",
+  data: {
+    labels: chartLabels,
+    datasets: [{
+      label: "Balance",
+      data: chartData,
+      borderColor: "orange",
+      backgroundColor: "transparent",
+      pointRadius: 5,
+      pointHoverRadius: 7,
+    }]
+  },
+  options: {
+    scales: {
+      y: {
+        beginAtZero: false
       }
     }
-  });
-}
+  }
+});
 
-fetchPrices();
+setInterval(updateData, 15000);
+updateData();
