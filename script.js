@@ -22,44 +22,62 @@ const chartData = [];
 const chartLabels = [];
 
 async function fetchHistory(id) {
-  const res = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=7`);
-  const json = await res.json();
-  return json.prices.map(p => p[1]); // daily prices from each point
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=7`);
+    const json = await res.json();
+    return json.prices.map(p => p[1]);
+  } catch (e) {
+    console.error(`Error loading history for ${id}:`, e);
+    return Array(7).fill(0); // fallback zeroes
+  }
 }
 
 async function buildHistory() {
-  const arrays = await Promise.all(tokens.map(t => fetchHistory(t.id)));
-  // for each day index, sum across all tokens
-  for (let i = 0; i < arrays[0].length; i++) {
-    let sum = 0;
-    tokens.forEach((t, idx) => {
-      sum += arrays[idx][i] * t.amount;
-    });
-    const daysAgo = arrays[0].length - 1 - i;
-    const date = new Date();
-    date.setDate(date.getDate() - daysAgo);
-    chartLabels.push(date.toLocaleDateString("en-GB",{day:"2-digit",month:"short"}));
-    chartData.push(sum.toFixed(2));
+  try {
+    const arrays = await Promise.all(tokens.map(t => fetchHistory(t.id)));
+    for (let i = 0; i < arrays[0].length; i++) {
+      let sum = 0;
+      tokens.forEach((t, idx) => {
+        sum += arrays[idx][i] * t.amount;
+      });
+      const daysAgo = arrays[0].length - 1 - i;
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      chartLabels.push(date.toLocaleDateString("en-GB",{day:"2-digit",month:"short"}));
+      chartData.push(sum.toFixed(2));
+    }
+  } catch (e) {
+    console.error("Error building chart data:", e);
   }
 }
 
 async function updateCurrent() {
-  const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${tokens.map(t=>t.id).join(',')}&vs_currencies=usd`);
-  const prices = await res.json();
-  let total = 0;
   const table = document.getElementById("tokenTable");
-  table.innerHTML = "";
-  tokens.forEach(t => {
-    const price = prices[t.id]?.usd || 0;
-    const value = price * t.amount;
-    total += value;
-    table.innerHTML += `<tr>
-      <td style="text-align:left;">${t.symbol}</td>
-      <td style="text-align:center;">${t.amount}</td>
-      <td style="text-align:right;">$${value.toFixed(2)}</td>
-    </tr>`;
-  });
-  document.getElementById("total").innerText = `$${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${tokens.map(t=>t.id).join(',')}&vs_currencies=usd`);
+    const prices = await res.json();
+    let total = 0;
+    table.innerHTML = "";
+
+    tokens.forEach(t => {
+      const price = prices[t.id]?.usd;
+      if (!price) return;
+      const value = price * t.amount;
+      total += value;
+
+      table.innerHTML += `<tr>
+        <td style="text-align:left;">${t.symbol}</td>
+        <td style="text-align:center;">${t.amount}</td>
+        <td style="text-align:right;">$${value.toFixed(2)}</td>
+      </tr>`;
+    });
+
+    document.getElementById("total").innerText = `$${total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  } catch (e) {
+    console.error("Error updating current prices:", e);
+    document.getElementById("total").innerText = "$—";
+    table.innerHTML = `<tr><td colspan="3" style="text-align:center;">Failed to load data</td></tr>`;
+  }
 }
 
 async function main() {
@@ -74,9 +92,19 @@ const chart = new Chart(ctx, {
   type: "line",
   data: {
     labels: chartLabels,
-    datasets: [{ label: "Balance", data: chartData, borderColor: "orange", backgroundColor: "transparent", pointRadius: 5 }]
+    datasets: [{
+      label: "Balance",
+      data: chartData,
+      borderColor: "orange",
+      backgroundColor: "transparent",
+      pointRadius: 5
+    }]
   },
-  options: { scales: { y: { beginAtZero: false } }}
+  options: {
+    scales: {
+      y: { beginAtZero: false }
+    }
+  }
 });
 
 main();
