@@ -24,33 +24,39 @@ const tokens = [
 const today = new Date().toISOString().split("T")[0];
 
 function calcUSD(amount, price) {
-  return amount * price;
+  return parseFloat((amount * price).toFixed(2));
 }
 
 function calcPct(now, entry) {
+  if (!entry || entry === 0) return "0.00";
   return ((now - entry) / entry * 100).toFixed(2);
 }
 
 let total = 0;
+let tokenHTML = "";
 
-document.getElementById("tokens").innerHTML = tokens.map(([name, amount, current, entry]) => {
+tokens.forEach(([name, amount, current, entry]) => {
   const usd = calcUSD(amount, current);
   const pct = calcPct(current, entry);
+  const pctColor = pct >= 0 ? 'lime' : 'red';
+
   total += usd;
-  return `
+
+  tokenHTML += `
     <div style="text-align:left">${name}</div>
     <div style="text-align:center">${amount}</div>
     <div style="text-align:right">$${usd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-    <div style="text-align:right; color:${pct >= 0 ? 'lime' : 'red'}">${pct}%</div>
+    <div style="text-align:right; color:${pctColor}">${pct}%</div>
   `;
-}).join('');
+});
 
+document.getElementById("tokens").innerHTML = tokenHTML;
 document.getElementById("total-balance").innerText = "$" + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-const ctx = document.getElementById('balanceChart').getContext('2d');
 const chartLabels = ['23 Jul', '24 Jul', '25 Jul', '26 Jul', '27 Jul', '28 Jul', today];
-const chartData = [78000, 79000, 77000, 80000, 80500, 81500, total.toFixed(2)];
+const chartData = [78000, 79000, 77000, 80000, 80500, 81500, total];
 
+const ctx = document.getElementById('balanceChart').getContext('2d');
 const balanceChart = new Chart(ctx, {
   type: 'line',
   data: {
@@ -64,11 +70,7 @@ const balanceChart = new Chart(ctx, {
     }]
   },
   options: {
-    scales: {
-      y: { beginAtZero: false }
-    },
-    plugins: {
-      legend: { display: false }
-    }
+    scales: { y: { beginAtZero: false } },
+    plugins: { legend: { display: false } }
   }
 });
