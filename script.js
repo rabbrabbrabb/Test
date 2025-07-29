@@ -1,7 +1,7 @@
 const tokens = [
   { id: "bitcoin", symbol: "BTC", amount: 0.11321 },
-  { id: "ethereum", symbol: "ETH", amount: 5.3 },
-  { id: "lido-dao", symbol: "LDO", amount: 3050.23 },
+  { id: "ethereum", symbol: "ETH", amount: 5.5 },
+  { id: "lido-dao", symbol: "LDO", amount: 3250.23 },
   { id: "solana", symbol: "SOL", amount: 74.45 },
   { id: "sei-network", symbol: "SEI", amount: 8452.6 },
   { id: "zksync", symbol: "ZK", amount: 42341.35 },
@@ -15,7 +15,7 @@ const tokens = [
   { id: "stepn", symbol: "GMT", amount: 45234 },
   { id: "io", symbol: "IO", amount: 2390 },
   { id: "immutable-x", symbol: "IMX", amount: 3200 },
-  { id: "ethena", symbol: "ENA", amount: 9543 }
+  { id: "ethena", symbol: "ENA", amount: 8543 }
 ];
 
 const chartData = [];
