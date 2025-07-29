@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Wallet</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <h1>Wallet</h1>
-  <div id="total-balance">$0.00</div>
-  <canvas id="balanceChart"></canvas>
-  <div id="tokens"></div>
+  <div class="container">
+    <h1 id="time"></h1>
+    <h2>Wallet</h2>
+    <h3 id="total">$0.00</h3>
+    <canvas id="balanceChart" height="100"></canvas>
+    <table id="tokenTable"></table>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
