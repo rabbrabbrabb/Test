@@ -1,5 +1,5 @@
 const holdings = {
-  BTC: 0.057,
+  BTC: 0.05675,
   ETH: 5.2352,
   LDO: 3250.23,
   SOL: 74.45,
@@ -15,7 +15,7 @@ const holdings = {
   GMT: 45234,
   IO: 2390,
   IMX: 3200,
-  ENA: 9543,
+  ENA: 8543,
 };
 
 const tokenIdMap = {
@@ -61,9 +61,7 @@ function initChart() {
     options: {
       responsive: true,
       plugins: {
-        legend: {
-          labels: { color: "orange" }
-        }
+        legend: { labels: { color: "orange" } }
       },
       scales: {
         x: { ticks: { color: "#ccc" } },
@@ -73,30 +71,34 @@ function initChart() {
   });
 }
 
-async function fetchAllPrices() {
-  const ids = Object.values(tokenIdMap).join(",");
+function updateTime() {
+  const now = new Date();
+  document.getElementById("time").textContent = now.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+async function fetchPrices(ids) {
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd`;
   try {
-    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
-    if (!res.ok) throw new Error("Failed to load prices");
-    return await res.json();
-  } catch (err) {
-    console.error("Ошибка загрузки:", err);
+    const res = await fetch(url);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error("Ошибка загрузки цен:", e);
     return {};
   }
 }
 
-async function updateWallet() {
-  const priceData = await fetchAllPrices();
+function displayTokens(priceMap) {
   const table = document.getElementById("tokens");
-  const balanceEl = document.getElementById("balance");
-  const loadingEl = document.getElementById("loading");
-
   table.innerHTML = "";
   let total = 0;
 
   for (const [symbol, amount] of Object.entries(holdings)) {
     const id = tokenIdMap[symbol];
-    const price = priceData[id]?.usd || 0;
+    const price = priceMap[id]?.usd || 0;
     const value = price * amount;
     total += value;
 
@@ -109,8 +111,8 @@ async function updateWallet() {
     table.appendChild(row);
   }
 
-  balanceEl.textContent = `$${total.toFixed(2)}`;
-  loadingEl.style.display = "none";
+  document.getElementById("balance").textContent = `$${total.toFixed(2)}`;
+  document.getElementById("loading").style.display = "none";
 
   const date = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   if (!dateLabels.includes(date)) {
@@ -124,18 +126,43 @@ async function updateWallet() {
   }
 }
 
-function updateTime() {
-  const now = new Date();
-  document.getElementById("time").textContent = now.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+async function initialLoad() {
+  const ids = Object.values(tokenIdMap);
+  const prices = await fetchPrices(ids);
+  displayTokens(prices);
+}
+
+async function partialUpdates() {
+  const symbols = Object.keys(tokenIdMap);
+  let index = 0;
+
+  setInterval(async () => {
+    const group = symbols.slice(index, index + 4).map(sym => tokenIdMap[sym]);
+    const prices = await fetchPrices(group);
+
+    for (const sym of symbols.slice(index, index + 4)) {
+      const id = tokenIdMap[sym];
+      if (prices[id]) {
+        const cell = document.querySelector(`td.token-name:contains(${sym})`);
+        if (cell) {
+          const price = prices[id].usd;
+          const amount = holdings[sym];
+          const value = price * amount;
+          const row = cell.parentElement;
+          row.children[2].textContent = `$${value.toFixed(2)}`;
+        }
+      }
+    }
+
+    index = (index + 4) % symbols.length;
+  }, 5000);
 }
 
 window.onload = async () => {
   updateTime();
   setInterval(updateTime, 60000);
+
   initChart();
-  await updateWallet();
-  setInterval(updateWallet, 15000);
+  await initialLoad();
+  partialUpdates();
 };
